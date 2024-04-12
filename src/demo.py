@@ -26,22 +26,24 @@ async def on_chat_start():
         ]
     )
     runnable = prompt | model | StrOutputParser()
-    cl.user_session.set("runnable", runnable)
+    cl.user_session.set("runnable", runnable)   # User Session (cf) https://docs.chainlit.io/concepts/user-session
 
 
 @cl.on_message
-async def on_message(message: cl.Message):
+async def on_message(question: cl.Message):
     """ The callback handler is responsible for listening to the chain’s intermediate steps and sending them to the UI.
         The `@on_message` decorator is used to define a hook that is called when a new message is received from the user.
     """
-    runnable = cl.user_session.get("runnable")  # type: Runnable
+    runnable = cl.user_session.get("runnable")  # User Session (cf) https://docs.chainlit.io/concepts/user-session
 
-    msg = cl.Message(content="")
+    # Get answers (by streaming) (cf) https://docs.chainlit.io/advanced-features/streaming
+    answer = cl.Message(content="")
 
     async for chunk in runnable.astream(
-        {"question": message.content},  # message received from user
+        {"question": question.content},
         config=RunnableConfig(callbacks=[cl.LangchainCallbackHandler()]),
     ):
-        await msg.stream_token(chunk)
+        await answer.stream_token(chunk)
 
-    await msg.send()    # send message to user (UI)
+    # Print answers
+    await answer.send()
